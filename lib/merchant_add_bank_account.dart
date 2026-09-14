@@ -76,6 +76,9 @@ class _MerchantAddBankAccountState extends State<MerchantAddBankAccount> {
   bool _isThaiOrEnglishName(String value) =>
       RegExp(r'^[A-Za-z\u0E00-\u0E4F\s]+$').hasMatch(value.trim());
 
+  bool _isThaiReceiverName(String value) =>
+      RegExp(r'^[\u0E01-\u0E3A\u0E40-\u0E4E ]+$').hasMatch(value.trim());
+
   bool get _bankFormValid {
     final name = _accountNameController.text.trim();
     final number = _accountNumberController.text.trim();
@@ -94,7 +97,7 @@ class _MerchantAddBankAccountState extends State<MerchantAddBankAccount> {
     return correctLength &&
         RegExp(r'^\d+$').hasMatch(id) &&
         receiver.isNotEmpty &&
-        _isThaiOrEnglishName(receiver);
+        _isThaiReceiverName(receiver);
   }
 
   bool get _isFormValid =>
@@ -138,8 +141,8 @@ class _MerchantAddBankAccountState extends State<MerchantAddBankAccount> {
     if (!_receiverNameTouched) return null;
     final value = _receiverNameController.text.trim();
     if (value.isEmpty) return 'กรุณากรอกชื่อผู้รับเงิน';
-    if (!_isThaiOrEnglishName(value)) {
-      return 'ชื่อผู้รับเงินต้องเป็นตัวอักษรเท่านั้น';
+    if (!_isThaiReceiverName(value)) {
+      return 'ชื่อผู้รับเงินต้องเป็นภาษาไทยเท่านั้น';
     }
     return null;
   }
@@ -183,6 +186,24 @@ class _MerchantAddBankAccountState extends State<MerchantAddBankAccount> {
         body: jsonEncode(data),
       );
       final body = jsonDecode(response.body);
+      if (response.statusCode == 409 && body['code'] == 'BANK_ACCOUNT_LIMIT_REACHED') {
+        if (!mounted) return;
+        await showDialog<void>(
+          context: context,
+          builder: (dialogContext) => AlertDialog(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+            title: const Text('เพิ่มบัญชีไม่ได้'),
+            content: const Text('คุณเพิ่มธนาคารเต็ม 2 บัญชีแล้ว'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(dialogContext),
+                child: const Text('ตกลง', style: TextStyle(color: Color(0xFF00C7E6))),
+              ),
+            ],
+          ),
+        );
+        return;
+      }
       if (response.statusCode != 201 || body['success'] != true) {
         throw Exception(body['message'] ?? 'เพิ่มช่องทางรับเงินไม่สำเร็จ');
       }
@@ -410,6 +431,7 @@ class _MerchantAddBankAccountState extends State<MerchantAddBankAccount> {
         const SizedBox(height: 8),
         _FormInput(
           icon: Icons.numbers,
+          iconLabel: 'P',
           hint: _promptPayHint,
           controller: _promptPayIdController,
           errorText: _promptPayIdError,
@@ -431,6 +453,20 @@ class _MerchantAddBankAccountState extends State<MerchantAddBankAccount> {
           hint: 'ชื่อผู้รับเงิน',
           controller: _receiverNameController,
           errorText: _receiverNameError,
+          inputFormatters: [
+            TextInputFormatter.withFunction((oldValue, newValue) {
+              // Preserve Thai keyboard composition, but reject other characters
+              // even while the keyboard is composing text.
+              if (newValue.text.isEmpty ||
+                  RegExp(r'^[\u0E01-\u0E3A\u0E40-\u0E4E ]+$')
+                      .hasMatch(newValue.text)) {
+                return newValue;
+              }
+              return FilteringTextInputFormatter.allow(
+                RegExp(r'[\u0E01-\u0E3A\u0E40-\u0E4E ]'),
+              ).formatEditUpdate(oldValue, newValue);
+            }),
+          ],
           onChanged: (_) {
             setState(() => _receiverNameTouched = true);
           },
@@ -623,6 +659,7 @@ class _FieldLabel extends StatelessWidget {
 
 class _FormInput extends StatelessWidget {
   final IconData icon;
+  final String? iconLabel;
   final String hint;
   final TextEditingController controller;
   final String? errorText;
@@ -633,6 +670,7 @@ class _FormInput extends StatelessWidget {
 
   const _FormInput({
     required this.icon,
+    this.iconLabel,
     required this.hint,
     required this.controller,
     this.errorText,
@@ -659,7 +697,21 @@ class _FormInput extends StatelessWidget {
           ),
           child: Row(
             children: [
-              Icon(icon, size: 20, color: const Color(0xFF737B85)),
+              if (iconLabel != null)
+                SizedBox(
+                  width: 20,
+                  child: Text(
+                    iconLabel!,
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xFF737B85),
+                    ),
+                  ),
+                )
+              else
+                Icon(icon, size: 20, color: const Color(0xFF737B85)),
               const SizedBox(width: 14),
               Expanded(
                 child: TextField(
