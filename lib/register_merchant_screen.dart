@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'login_screen.dart'; // Import หน้าล็อกอิน
+import 'api.config.dart';
+import 'merchant_add_bank_account.dart';
 
 class RegisterMerchantScreen extends StatefulWidget {
   const RegisterMerchantScreen({super.key});
@@ -44,7 +46,9 @@ class _RegisterMerchantScreenState extends State<RegisterMerchantScreen> {
     setState(() => _isLoading = true);
 
     // *หมายเหตุ: หากทดสอบบน Android Emulator ให้เปลี่ยน localhost เป็น 10.0.2.2
-    var url = Uri.parse('http://localhost:3000/api/merchants/register');
+    var url = Uri.parse(
+      '${ApiConfig.baseUrl}/api/merchants/register',
+    );
 
     try {
       var response = await http.post(
@@ -63,6 +67,20 @@ class _RegisterMerchantScreenState extends State<RegisterMerchantScreen> {
 
       if (response.statusCode == 201) {
         if (!mounted) return;
+
+        final merchantId = data['merchant_id'];
+        if (merchantId == null) throw Exception('เซิร์ฟเวอร์ไม่ส่งรหัสร้านค้า');
+        final bankSaved = await Navigator.push<bool>(
+          context,
+          MaterialPageRoute(builder: (_) => MerchantAddBankAccount(merchantId: merchantId)),
+        );
+        if (bankSaved != true) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('กรุณาเพิ่มบัญชีรับเงินอย่างน้อย 1 บัญชีก่อนเข้าใช้งาน')));
+            setState(() => _isLoading = false);
+          }
+          return;
+        }
 
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
