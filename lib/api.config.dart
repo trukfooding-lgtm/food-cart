@@ -1,6 +1,6 @@
 class ApiConfig {
   // สำหรับรันบน Android Emulator (10.0.2.2 ชี้ไปยัง localhost ของเครื่อง Mac/PC)
-  static const String baseUrl = 'http://10.0.2.2:3000';
+  static const String baseUrl = 'https://food-cart-c20i.onrender.com';
 
   // รายการ API ลูกค้า
   static const String login = '$baseUrl/api/customers/login';
@@ -23,6 +23,7 @@ class ApiConfig {
   static String merchantReviews(Object merchantId) => '$baseUrl/api/merchants/$merchantId/reviews';
   static String merchantMenus(Object merchantId) => '$baseUrl/api/merchants/$merchantId/menus';
   static String merchantNotifications(Object merchantId) => '$baseUrl/api/merchants/$merchantId/notifications';
+  static String merchantFcmToken(Object merchantId) => '$baseUrl/api/merchants/$merchantId/fcm-token';
   static String merchantIssueReports(Object merchantId) => '$baseUrl/api/merchants/$merchantId/issue-reports';
   static String merchantOrders(Object merchantId) => '$baseUrl/api/merchants/$merchantId/orders';
   static String merchantOrderStatus(Object merchantId, Object orderId) => '$baseUrl/api/merchants/$merchantId/orders/$orderId/status';

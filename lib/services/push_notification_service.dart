@@ -5,16 +5,19 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import '../main.dart';
+import '../merchant_home_screen.dart';
 import '../notification_screen.dart';
 
 // ฟังก์ชันรับข้อความตอนที่ปิดแอปไปแล้ว (Background)
 @pragma('vm:entry-point')
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
-  print("📩 ได้รับแจ้งเตือน (Background): ${message.messageId}");
+  debugPrint("📩 ได้รับแจ้งเตือน (Background): ${message.messageId}");
 }
 
 class PushNotificationService {
   final FirebaseMessaging _fcm = FirebaseMessaging.instance;
+  static String? _activeRole;
+  static String? _activeUserId;
 
   Future<void> initialize() async {
     // 1. ขออนุญาตส่งแจ้งเตือน (สำหรับ iOS และ Android 13+)
@@ -23,29 +26,48 @@ class PushNotificationService {
       badge: true,
       sound: true,
     );
-    
+
     if (settings.authorizationStatus == AuthorizationStatus.authorized) {
-      print('✅ อนุญาตให้ส่งแจ้งเตือนแล้ว');
+      debugPrint('✅ อนุญาตให้ส่งแจ้งเตือนแล้ว');
     }
 
-    // 2. ดึง FCM Token ของเครื่องนี้ (ต้องส่งให้ Backend เอายิงแจ้งเตือนมาหา)
+    // 2. ตรวจสอบ Token ของเครื่อง โดยจะผูกกับบัญชีจริงหลังเข้าสู่ระบบ
     try {
       // สำหรับ iOS บางทีต้องรอ APNS Token ก่อน
       if (defaultTargetPlatform == TargetPlatform.iOS) {
         await Future.delayed(const Duration(seconds: 1));
       }
       String? token = await _fcm.getToken();
-      print("🔑 FCM Token: $token");
-      if (token != null) {
-        sendTokenToBackend(token);
-      }
+      debugPrint("🔑 FCM Token: $token");
     } catch (e) {
-      print("⚠️ ดึง Token ไม่สำเร็จ (มักเกิดใน iOS Simulator): $e");
+      debugPrint("⚠️ ดึง Token ไม่สำเร็จ (มักเกิดใน iOS Simulator): $e");
     }
+
+    await _fcm.setForegroundNotificationPresentationOptions(
+      alert: true,
+      badge: true,
+      sound: true,
+    );
+
+    _fcm.onTokenRefresh.listen((token) {
+      final role = _activeRole;
+      final userId = _activeUserId;
+      if (role == 'merchant' && userId != null) {
+        _sendMerchantToken(token, userId);
+      } else if (role == 'customer' && userId != null) {
+        sendTokenToBackend(token, customerId: userId);
+      }
+    });
 
     // 3. จัดการตอนที่แอปเปิดใช้งานอยู่ (Foreground)
     FirebaseMessaging.onMessage.listen((RemoteMessage message) {
-      print('🔔 ได้รับแจ้งเตือน (Foreground): ${message.notification?.title}');
+      debugPrint(
+        '🔔 ได้รับแจ้งเตือน (Foreground): ${message.notification?.title}',
+      );
+      if (_isMerchantMessage(message)) {
+        _showMerchantForegroundNotification(message);
+        return;
+      }
       if (message.notification != null) {
         NotificationScreen.addLocalNotification(
           title: message.notification!.title ?? 'การแจ้งเตือนใหม่',
@@ -56,7 +78,11 @@ class PushNotificationService {
 
     // 4. จัดการตอนผู้ใช้คลิกเปิดจากการแจ้งเตือน (ขณะแอปอยู่ Background)
     FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
-      print('📲 ผู้ใช้กดเปิดแจ้งเตือน: ${message.notification?.title}');
+      debugPrint('📲 ผู้ใช้กดเปิดแจ้งเตือน: ${message.notification?.title}');
+      if (_isMerchantMessage(message)) {
+        _openMerchantHome(message);
+        return;
+      }
       if (message.notification != null) {
         NotificationScreen.addLocalNotification(
           title: message.notification!.title ?? 'การแจ้งเตือนใหม่',
@@ -71,7 +97,18 @@ class PushNotificationService {
     // 5. จัดการกรณีแอปปิดสนิท (Terminated) แล้วผู้ใช้คลิกแจ้งเตือนเพื่อเปิดแอป
     RemoteMessage? initialMessage = await _fcm.getInitialMessage();
     if (initialMessage != null) {
-      print('📲 เปิดแอปจากแจ้งเตือน (Terminated): ${initialMessage.notification?.title}');
+      debugPrint(
+        '📲 เปิดแอปจากแจ้งเตือน (Terminated): ${initialMessage.notification?.title}',
+      );
+      if (_isMerchantMessage(initialMessage)) {
+        Future.delayed(const Duration(milliseconds: 1000), () {
+          _openMerchantHome(initialMessage);
+        });
+        FirebaseMessaging.onBackgroundMessage(
+          _firebaseMessagingBackgroundHandler,
+        );
+        return;
+      }
       if (initialMessage.notification != null) {
         NotificationScreen.addLocalNotification(
           title: initialMessage.notification!.title ?? 'การแจ้งเตือนใหม่',
@@ -89,23 +126,108 @@ class PushNotificationService {
     FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
   }
 
+  static bool _isMerchantMessage(RemoteMessage message) {
+    return message.data['recipient_type'] == 'merchant';
+  }
+
+  static void _showMerchantForegroundNotification(RemoteMessage message) {
+    final context = navigatorKey.currentState?.overlay?.context;
+    if (context == null) return;
+
+    ScaffoldMessenger.maybeOf(context)?.showSnackBar(
+      SnackBar(
+        content: Text(
+          '${message.notification?.title ?? 'การแจ้งเตือนร้านค้า'}\n'
+          '${message.notification?.body ?? ''}',
+        ),
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+  }
+
+  static void _openMerchantHome(RemoteMessage message) {
+    final merchantId = message.data['merchant_id'];
+    if (merchantId == null || merchantId.toString().isEmpty) return;
+
+    navigatorKey.currentState?.push(
+      MaterialPageRoute(
+        builder: (_) => MerchantHomeScreen(
+          merchantData: {
+            'id': int.tryParse(merchantId.toString()) ?? merchantId,
+          },
+        ),
+      ),
+    );
+  }
+
+  static Future<void> registerCustomerToken(String customerId) async {
+    _activeRole = 'customer';
+    _activeUserId = customerId;
+
+    try {
+      final token = await FirebaseMessaging.instance.getToken();
+      if (token != null) {
+        await sendTokenToBackend(token, customerId: customerId);
+      }
+    } catch (e) {
+      debugPrint('⚠️ ลงทะเบียน Token ลูกค้าไม่สำเร็จ: $e');
+    }
+  }
+
+  static Future<void> registerMerchantToken(String merchantId) async {
+    _activeRole = 'merchant';
+    _activeUserId = merchantId;
+
+    try {
+      final token = await FirebaseMessaging.instance.getToken();
+      if (token != null) {
+        await _sendMerchantToken(token, merchantId);
+      }
+    } catch (e) {
+      debugPrint('⚠️ ลงทะเบียน Token ร้านค้าไม่สำเร็จ: $e');
+    }
+  }
+
   // ส่ง FCM Token ไปบันทึกในฐานข้อมูล Backend
-  static Future<void> sendTokenToBackend(String token, {String customerId = '1'}) async {
+  static Future<void> sendTokenToBackend(
+    String token, {
+    String customerId = '1',
+  }) async {
     try {
       final url = Uri.parse(ApiConfig.saveFcmToken);
       final response = await http.post(
         url,
         headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({
-          'customer_id': customerId,
-          'fcm_token': token,
-        }),
+        body: jsonEncode({'customer_id': customerId, 'fcm_token': token}),
       );
       if (response.statusCode == 200) {
-        print('✅ ส่ง FCM Token ไปบันทึกที่ Backend สำเร็จ');
+        debugPrint('✅ ส่ง FCM Token ไปบันทึกที่ Backend สำเร็จ');
       }
     } catch (e) {
-      print('⚠️ ส่ง FCM Token ไป Backend ไม่สำเร็จ: $e');
+      debugPrint('⚠️ ส่ง FCM Token ไป Backend ไม่สำเร็จ: $e');
+    }
+  }
+
+  static Future<void> _sendMerchantToken(
+    String token,
+    String merchantId,
+  ) async {
+    try {
+      final response = await http.post(
+        Uri.parse(ApiConfig.merchantFcmToken(merchantId)),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'fcm_token': token}),
+      );
+
+      if (response.statusCode == 200) {
+        debugPrint('✅ ส่ง FCM Token ร้านค้าไปบันทึกที่ Backend สำเร็จ');
+      } else {
+        debugPrint(
+          '⚠️ Backend ปฏิเสธ FCM Token ร้านค้า: ${response.statusCode}',
+        );
+      }
+    } catch (e) {
+      debugPrint('⚠️ ส่ง FCM Token ร้านค้าไป Backend ไม่สำเร็จ: $e');
     }
   }
 }

@@ -5,6 +5,7 @@ import 'merchant_home_screen.dart'; // หน้า Dashboard ผู้ค้า
 import 'register_merchant_screen.dart'; // หน้าสมัครสมาชิกผู้ค้า
 import 'login_screen.dart';
 import 'api.config.dart';
+import 'services/push_notification_service.dart';
 
 class MerchantLoginScreen extends StatefulWidget {
   const MerchantLoginScreen({super.key});
@@ -51,6 +52,11 @@ class _MerchantLoginScreenState extends State<MerchantLoginScreen> {
       var data = jsonDecode(response.body);
 
       if (response.statusCode == 200 && data['success'] == true) {
+        final merchantData = Map<String, dynamic>.from(data['merchant']);
+        await PushNotificationService.registerMerchantToken(
+          merchantData['id'].toString(),
+        );
+
         if (!mounted) return;
 
         ScaffoldMessenger.of(context).showSnackBar(
@@ -64,7 +70,7 @@ class _MerchantLoginScreenState extends State<MerchantLoginScreen> {
           context,
           MaterialPageRoute(
             builder: (context) => MerchantHomeScreen(
-              merchantData: Map<String, dynamic>.from(data['merchant']),
+              merchantData: merchantData,
             ),
           ),
         );

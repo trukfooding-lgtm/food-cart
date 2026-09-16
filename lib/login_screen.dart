@@ -6,6 +6,7 @@ import 'buyer_home_screen.dart';
 import 'role_selection_screen.dart'; 
 import 'merchant_login_screen.dart'; 
 import 'ForgotPassword_screen.dart'; 
+import 'services/push_notification_service.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -71,6 +72,11 @@ class _LoginScreenState extends State<LoginScreen> {
       }
 
       if (response.statusCode == 200) {
+        await PushNotificationService.registerCustomerToken(
+          data['customer']['customer_id'].toString(),
+        );
+        if (!mounted) return;
+
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(data['message'] ?? 'เข้าสู่ระบบสำเร็จ!'),
