@@ -83,19 +83,32 @@ class _NotificationPageState extends State<NotificationPage> {
               itemBuilder: (context, index) {
                 final notification = _notifications[index];
                 final type = notification['source_type']?.toString();
-                final icon = type == 'order'
+                final isOrderNotification = type == 'order' ||
+                    type == 'order_cancelled' ||
+                    type == 'order_completed';
+                final isCancelledOrder = type == 'order_cancelled';
+                final isCompletedOrder = type == 'order_completed';
+                final icon = isCancelledOrder
+                    ? Icons.cancel_outlined
+                    : isCompletedOrder
+                    ? Icons.check_circle_outline
+                    : type == 'order'
                     ? Icons.receipt_long
                     : type == 'review'
                     ? Icons.star
                     : Icons.favorite;
-                final color = type == 'order'
+                final color = isCancelledOrder
+                    ? const Color(0xFFEF4444)
+                    : isCompletedOrder
+                    ? const Color(0xFF10B981)
+                    : type == 'order'
                     ? const Color(0xFF00C7E6)
                     : type == 'review'
                     ? Colors.amber
                     : const Color(0xFFEC4899);
                 return GestureDetector(
                   onTap: () {
-                    if (type == 'order') {
+                    if (isOrderNotification) {
                       widget.onGoToOrders();
                     } else if (type == 'follower') {
                       Navigator.push(
