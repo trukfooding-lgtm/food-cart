@@ -31,6 +31,8 @@ class ApiConfig {
   static String merchantBankAccounts(Object merchantId) => '$baseUrl/api/merchants/$merchantId/bank-accounts';
   static String merchantPrimaryBankAccount(Object merchantId, Object accountId) => '$baseUrl/api/merchants/$merchantId/bank-accounts/$accountId/primary';
   static String merchantBankAccount(Object merchantId, Object accountId) => '$baseUrl/api/merchants/$merchantId/bank-accounts/$accountId';
+  static String merchantPaymentSlip(Object merchantId, Object orderId) => '$baseUrl/api/merchants/$merchantId/orders/$orderId/payment-slip';
+  static String merchantReportPaymentSlip(Object merchantId, Object orderId) => '$baseUrl/api/merchants/$merchantId/orders/$orderId/payment-slip/report';
 
   // รายการ API ออเดอร์และร้านค้าทั่วไป
   static const String getFoodTrucks = '$baseUrl/api/merchants/trucks';
@@ -40,4 +42,8 @@ class ApiConfig {
   // 🟢 รายการ API แจ้งเตือน (เพิ่มใหม่)
   static const String saveFcmToken = '$baseUrl/api/orders/fcm-token';
   static const String getNotifications = '$baseUrl/api/orders/notifications';
+
+  // 💳 รายการ API ระบบชำระเงิน (Payment)
+  static String paymentInfo(Object orderId) => '$baseUrl/api/orders/$orderId/payment-info';
+  static String uploadPaymentSlip(Object orderId) => '$baseUrl/api/orders/$orderId/payment-slip';
 }

@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import '../api.config.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import '../main.dart';
@@ -16,6 +17,15 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
 
 class PushNotificationService {
   final FirebaseMessaging _fcm = FirebaseMessaging.instance;
+  static final FlutterLocalNotificationsPlugin _localNotifications =
+      FlutterLocalNotificationsPlugin();
+  static const AndroidNotificationChannel _merchantChannel =
+      AndroidNotificationChannel(
+        'merchant_notifications',
+        'การแจ้งเตือนร้านค้า',
+        description: 'การแจ้งเตือนออเดอร์และกิจกรรมของร้านค้า',
+        importance: Importance.high,
+      );
   static String? _activeRole;
   static String? _activeUserId;
 
@@ -48,6 +58,10 @@ class PushNotificationService {
       badge: true,
       sound: true,
     );
+
+    if (defaultTargetPlatform == TargetPlatform.android) {
+      await _initializeMerchantLocalNotifications();
+    }
 
     _fcm.onTokenRefresh.listen((token) {
       final role = _activeRole;
@@ -131,6 +145,27 @@ class PushNotificationService {
   }
 
   static void _showMerchantForegroundNotification(RemoteMessage message) {
+    if (defaultTargetPlatform == TargetPlatform.android) {
+      final androidDetails = AndroidNotificationDetails(
+        _merchantChannel.id,
+        _merchantChannel.name,
+        channelDescription: _merchantChannel.description,
+        importance: Importance.high,
+        priority: Priority.high,
+        icon: '@mipmap/ic_launcher',
+      );
+      final title = message.notification?.title ?? 'การแจ้งเตือนร้านค้า';
+      final body = message.notification?.body ?? '';
+      final sourceId = message.data['source_id']?.toString();
+      _localNotifications.show(
+        sourceId?.hashCode.abs() ?? DateTime.now().millisecondsSinceEpoch,
+        title,
+        body,
+        NotificationDetails(android: androidDetails),
+      );
+      return;
+    }
+
     final context = navigatorKey.currentState?.overlay?.context;
     if (context == null) return;
 
@@ -143,6 +178,18 @@ class PushNotificationService {
         behavior: SnackBarBehavior.floating,
       ),
     );
+  }
+
+  static Future<void> _initializeMerchantLocalNotifications() async {
+    const initializationSettings = InitializationSettings(
+      android: AndroidInitializationSettings('@mipmap/ic_launcher'),
+    );
+    await _localNotifications.initialize(initializationSettings);
+    final androidPlugin = _localNotifications
+        .resolvePlatformSpecificImplementation<
+          AndroidFlutterLocalNotificationsPlugin
+        >();
+    await androidPlugin?.createNotificationChannel(_merchantChannel);
   }
 
   static void _openMerchantHome(RemoteMessage message) {
@@ -179,6 +226,15 @@ class PushNotificationService {
     _activeUserId = merchantId;
 
     try {
+      // ขอสิทธิ์แสดงแจ้งเตือนในถาดระบบเฉพาะตอนที่ผู้ใช้เข้าสู่ระบบร้านค้า
+      // เพื่อไม่เปลี่ยนพฤติกรรมการแจ้งเตือนของฝั่งลูกค้า
+      if (defaultTargetPlatform == TargetPlatform.android) {
+        final androidPlugin = _localNotifications
+            .resolvePlatformSpecificImplementation<
+              AndroidFlutterLocalNotificationsPlugin
+            >();
+        await androidPlugin?.requestNotificationsPermission();
+      }
       final token = await FirebaseMessaging.instance.getToken();
       if (token != null) {
         await _sendMerchantToken(token, merchantId);

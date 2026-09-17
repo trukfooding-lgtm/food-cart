@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
@@ -6,6 +7,7 @@ import 'package:http/http.dart' as http;
 import 'api.config.dart';
 import 'merchant_profile_screen.dart';
 import 'merchant_reviews.dart';
+import 'merchant_slip_review_screen.dart';
 
 class NotificationPage extends StatefulWidget {
   final dynamic merchantId;
@@ -24,30 +26,54 @@ class NotificationPage extends StatefulWidget {
 class _NotificationPageState extends State<NotificationPage> {
   List<Map<String, dynamic>> _notifications = [];
   bool _isLoading = true;
+  String? _errorMessage;
+  Timer? _refreshTimer;
 
   @override
   void initState() {
     super.initState();
     _loadNotifications();
+    _refreshTimer = Timer.periodic(
+      const Duration(seconds: 10),
+      (_) => _loadNotifications(showLoader: false),
+    );
   }
 
-  Future<void> _loadNotifications() async {
+  @override
+  void dispose() {
+    _refreshTimer?.cancel();
+    super.dispose();
+  }
+
+  Future<void> _loadNotifications({bool showLoader = true}) async {
+    if (showLoader && mounted) {
+      setState(() {
+        _isLoading = true;
+        _errorMessage = null;
+      });
+    }
     try {
       final response = await http.get(
         Uri.parse(ApiConfig.merchantNotifications(widget.merchantId)),
       );
       final body = jsonDecode(response.body);
       if (response.statusCode != 200 || body['success'] != true)
-        throw Exception();
+        throw Exception('ไม่สามารถโหลดการแจ้งเตือนร้านค้าได้');
       if (!mounted) return;
       setState(() {
         _notifications = List<Map<String, dynamic>>.from(
           (body['data'] as List).map((item) => Map<String, dynamic>.from(item)),
         );
         _isLoading = false;
+        _errorMessage = null;
       });
-    } catch (error) {
-      if (mounted) setState(() => _isLoading = false);
+    } catch (_) {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+          _errorMessage = 'โหลดการแจ้งเตือนไม่สำเร็จ แตะเพื่อลองใหม่';
+        });
+      }
     }
   }
 
@@ -74,6 +100,13 @@ class _NotificationPageState extends State<NotificationPage> {
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
+          : _errorMessage != null && _notifications.isEmpty
+          ? Center(
+              child: TextButton(
+                onPressed: () => _loadNotifications(),
+                child: Text(_errorMessage!),
+              ),
+            )
           : _notifications.isEmpty
           ? const Center(child: Text('ยังไม่มีการแจ้งเตือน'))
           : ListView.separated(
@@ -83,12 +116,17 @@ class _NotificationPageState extends State<NotificationPage> {
               itemBuilder: (context, index) {
                 final notification = _notifications[index];
                 final type = notification['source_type']?.toString();
+                final isPaymentIssue = type == 'payment_issue';
                 final isOrderNotification = type == 'order' ||
                     type == 'order_cancelled' ||
                     type == 'order_completed';
                 final isCancelledOrder = type == 'order_cancelled';
                 final isCompletedOrder = type == 'order_completed';
-                final icon = isCancelledOrder
+                final icon = isPaymentIssue
+                    ? Icons.warning_amber_rounded
+                    : type == 'payment_verified'
+                    ? Icons.verified_rounded
+                    : isCancelledOrder
                     ? Icons.cancel_outlined
                     : isCompletedOrder
                     ? Icons.check_circle_outline
@@ -97,7 +135,11 @@ class _NotificationPageState extends State<NotificationPage> {
                     : type == 'review'
                     ? Icons.star
                     : Icons.favorite;
-                final color = isCancelledOrder
+                final color = isPaymentIssue
+                    ? const Color(0xFFEF4444)
+                    : type == 'payment_verified'
+                    ? const Color(0xFF10B981)
+                    : isCancelledOrder
                     ? const Color(0xFFEF4444)
                     : isCompletedOrder
                     ? const Color(0xFF10B981)
@@ -110,6 +152,16 @@ class _NotificationPageState extends State<NotificationPage> {
                   onTap: () {
                     if (isOrderNotification) {
                       widget.onGoToOrders();
+                    } else if (isPaymentIssue && notification['source_id'] != null) {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => MerchantSlipReviewScreen(
+                            merchantId: widget.merchantId,
+                            orderId: notification['source_id'],
+                          ),
+                        ),
+                      );
                     } else if (type == 'follower') {
                       Navigator.push(
                         context,

@@ -43,12 +43,14 @@ dependencies:
   geocoding: ^3.0.0
   firebase_core: ^4.14.0
   firebase_messaging: ^16.6.0
+  flutter_local_notifications: ^19.4.0
   shared_preferences: ^2.5.3
+  # google_mlkit_text_recognition: ^0.17.1
+  qr_flutter: ^4.1.0
 
   # 🗺️ ระบบแผนที่ OpenStreetMap (ฟรี 100% ไม่ต้องใช้ Google Maps API Key)
   flutter_map: ^8.3.0
   latlong2: ^0.9.1
-
 dev_dependencies:
   flutter_test:
     sdk: flutter
