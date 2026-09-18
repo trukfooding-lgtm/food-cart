@@ -117,6 +117,16 @@ class _MerchantHomeScreenState extends State<MerchantHomeScreen> {
         (body['data'] as List).map((raw) {
           final data = Map<String, dynamic>.from(raw);
           final status = data['merchant_status']?.toString() ?? 'ใหม่';
+          final isPaid =
+              data['is_paid'] == true ||
+              data['is_paid']?.toString().toLowerCase() == 'true' ||
+              data['transaction_id']?.toString().trim().isNotEmpty == true ||
+              const {
+                'PAID',
+                'ชำระเงินแล้ว',
+                'พร้อมรับ',
+                'รับอาหารสำเร็จแล้ว',
+              }.contains(data['customer_order_status']);
           final orderedAt = DateTime.tryParse(
             data['ordered_at']?.toString() ?? '',
           )?.toLocal();
@@ -149,6 +159,23 @@ class _MerchantHomeScreenState extends State<MerchantHomeScreen> {
             'price': '฿${data['total_price']}',
             'time': displayTime(orderedAt),
             'paymentTime': displayTime(orderedAt),
+            'isPaid': isPaid,
+            'customerPoints':
+                data['customer_points'] ??
+                data['points_balance'] ??
+                data['points_remaining'] ??
+                data['loyalty_points'] ??
+                data['reward_points'],
+            'pointsUsed':
+                data['points_used'] ??
+                data['used_points'] ??
+                data['points_redeemed'] ??
+                data['redeemed_points'],
+            'pointsDiscount':
+                data['points_discount'] ??
+                data['points_discount_amount'] ??
+                data['redeemed_amount'] ??
+                data['discount_from_points'],
             'status': status,
             'statusColor': color,
             'icon': icon,
@@ -548,7 +575,8 @@ class _MerchantHomeScreenState extends State<MerchantHomeScreen> {
                             ),
                           ),
                           // 🟢 แต้มสะสมของลูกค้า — ให้ร้านค้าเห็นได้ทันทีจากหน้าจัดการคำสั่งซื้อ ไม่ต้องกดดูรายละเอียดก่อน
-                          if (order['customerPoints'] != null) ...[
+                          if (order['isPaid'] == true &&
+                              order['customerPoints'] != null) ...[
                             const SizedBox(width: 6),
                             const Icon(
                               Icons.loyalty,
@@ -1886,7 +1914,8 @@ class _MerchantHomeScreenState extends State<MerchantHomeScreen> {
                     ),
                   ),
                   // 🟢 แต้มสะสมของลูกค้า — ให้ร้านค้าดูแต้มสะสมของลูกค้าได้ตั้งแต่หน้าคำสั่งซื้อ (นำไปแลกส่วนลดได้)
-                  if (order['customerPoints'] != null)
+                  if (order['isPaid'] == true &&
+                      order['customerPoints'] != null)
                     Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [

@@ -200,8 +200,9 @@ class _MerchantAcceptOrderState extends State<MerchantAcceptOrder> {
                                       ),
                                     ),
                                     // 🟢 แต้มสะสมของลูกค้า แสดงไว้ในหน้ารับ/ปฏิเสธออเดอร์ด้วย
-                                    if (widget.orderData['customerPoints'] !=
-                                        null) ...[
+                                    if (widget.orderData['isPaid'] == true &&
+                                        widget.orderData['customerPoints'] !=
+                                            null) ...[
                                       const SizedBox(width: 6),
                                       const Icon(
                                         Icons.loyalty,

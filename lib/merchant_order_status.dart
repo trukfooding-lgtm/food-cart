@@ -28,6 +28,36 @@ class _MerchantOrderStatusState extends State<MerchantOrderStatus> {
   bool _isCancelled =
       false; // 🟢 แยกสถานะ "ยกเลิก" ออกมาต่างหาก เพื่อไม่ให้ timeline แสดงผลผิด
 
+  bool get _isPaid =>
+      widget.orderData['isPaid'] == true ||
+      widget.orderData['is_paid'] == true ||
+      const {
+        'ชำระเงินแล้ว',
+        'พร้อมรับ',
+        'รับอาหารสำเร็จแล้ว',
+      }.contains(widget.orderData['status']);
+
+  double? _asNumber(dynamic value) {
+    if (value is num) return value.toDouble();
+    final text = value?.toString().trim() ?? '';
+    if (text.isEmpty || text == 'null') return null;
+    return double.tryParse(text.replaceAll(RegExp(r'[^0-9.-]'), ''));
+  }
+
+  String _numberText(double value) => value == value.roundToDouble()
+      ? value.toInt().toString()
+      : value.toStringAsFixed(2);
+
+  bool get _hasLoyaltyInfo {
+    if (!_isPaid) return false;
+    final balance = _asNumber(widget.orderData['customerPoints']);
+    final used = _asNumber(widget.orderData['pointsUsed']);
+    final discount = _asNumber(widget.orderData['pointsDiscount']);
+    return balance != null ||
+        (used != null && used > 0) ||
+        (discount != null && discount > 0);
+  }
+
   Future<bool> _saveReadyStatus() async {
     final merchantId = widget.orderData['merchantId'];
     final orderId = widget.orderData['databaseId'];
@@ -180,7 +210,8 @@ class _MerchantOrderStatusState extends State<MerchantOrderStatus> {
                               ),
                             ),
                             // 🟢 แต้มสะสมของลูกค้า แสดงไว้ข้างชื่อเหมือนหน้าจัดการคำสั่งซื้อ
-                            if (widget.orderData['customerPoints'] != null) ...[
+                            if (_isPaid &&
+                                widget.orderData['customerPoints'] != null) ...[
                               const SizedBox(width: 6),
                               const Icon(
                                 Icons.loyalty,
@@ -200,6 +231,75 @@ class _MerchantOrderStatusState extends State<MerchantOrderStatus> {
                           ],
                         ),
                         const SizedBox(height: 16),
+                        if (_hasLoyaltyInfo) ...[
+                          Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.all(14),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFF0FDFA),
+                              borderRadius: BorderRadius.circular(14),
+                              border: Border.all(
+                                color: const Color(0xFF99F6E4),
+                              ),
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Row(
+                                  children: [
+                                    Icon(
+                                      Icons.loyalty,
+                                      size: 18,
+                                      color: Color(0xFF0F766E),
+                                    ),
+                                    SizedBox(width: 8),
+                                    Text(
+                                      'แต้มสะสมของลูกค้า',
+                                      style: TextStyle(
+                                        color: Color(0xFF0F766E),
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 8),
+                                if (_asNumber(
+                                      widget.orderData['customerPoints'],
+                                    ) !=
+                                    null)
+                                  Text(
+                                    'แต้มคงเหลือ: ${_numberText(_asNumber(widget.orderData['customerPoints'])!)} แต้ม',
+                                    style: const TextStyle(
+                                      color: Color(0xFF134E4A),
+                                    ),
+                                  ),
+                                if ((_asNumber(
+                                          widget.orderData['pointsUsed'],
+                                        ) ??
+                                        0) >
+                                    0)
+                                  Text(
+                                    'ใช้แต้มแลก: ${_numberText(_asNumber(widget.orderData['pointsUsed'])!)} แต้ม',
+                                    style: const TextStyle(
+                                      color: Color(0xFF134E4A),
+                                    ),
+                                  ),
+                                if ((_asNumber(
+                                          widget.orderData['pointsDiscount'],
+                                        ) ??
+                                        0) >
+                                    0)
+                                  Text(
+                                    'ส่วนลดจากแต้ม: ฿${_numberText(_asNumber(widget.orderData['pointsDiscount'])!)}',
+                                    style: const TextStyle(
+                                      color: Color(0xFF134E4A),
+                                    ),
+                                  ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: 16),
+                        ],
                         Row(
                           children: [
                             // 🟢 เปลี่ยนจากไอคอนโปรไฟล์ (คน) เป็นไอคอนอาหารแทน
