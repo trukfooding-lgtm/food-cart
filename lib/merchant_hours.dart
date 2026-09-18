@@ -245,17 +245,6 @@ class _MerchantHoursState extends State<MerchantHours> {
 
             const SizedBox(height: 32),
 
-            // กล่องเลือกเวลาเปิด - ปิด
-            Row(
-              children: [
-                Expanded(child: _buildTimePickerCard('เวลาเปิด', true)),
-                const SizedBox(width: 16),
-                Expanded(child: _buildTimePickerCard('เวลาปิด', false)),
-              ],
-            ),
-
-            const SizedBox(height: 24),
-
             // ข้อความแจ้งเตือน
             Container(
               padding: const EdgeInsets.all(16),
@@ -274,7 +263,7 @@ class _MerchantHoursState extends State<MerchantHours> {
                   const SizedBox(width: 12),
                   Expanded(
                     child: const Text(
-                      'เวลาที่ตั้งไว้จะเป็นเวลามาตรฐานที่แสดงบนหน้าร้านค้า ลูกค้าจะสามารถสั่งซื้อได้ตามช่วงเวลานี้เท่านั้น',
+                      'เวลาเปิด–ปิดร้านตั้งค่าได้จากหน้าปักหมุดในแผนที่ ส่วนหน้านี้ใช้เลือกวันที่เปิดให้บริการ',
                       style: TextStyle(
                         fontSize: 12,
                         color: Colors.grey,
@@ -313,136 +302,6 @@ class _MerchantHoursState extends State<MerchantHours> {
           ],
         ),
       ),
-    );
-  }
-
-  Widget _buildTimePickerCard(String title, bool isOpenTime) {
-    return Column(
-      children: [
-        Text(
-          title,
-          style: const TextStyle(
-            fontSize: 14,
-            fontWeight: FontWeight.bold,
-            color: Color(0xFF1E293B),
-          ),
-        ),
-        const SizedBox(height: 12),
-        Container(
-          height: 160,
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(16),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.05),
-                blurRadius: 10,
-                offset: const Offset(0, 4),
-              ),
-            ],
-          ),
-          child: Stack(
-            alignment: Alignment.center,
-            children: [
-              // เส้นขอบตรงกลาง
-              Container(
-                height: 40,
-                decoration: BoxDecoration(
-                  border: Border.symmetric(
-                    horizontal: BorderSide(color: Colors.grey.shade200),
-                  ),
-                ),
-              ),
-              const Text(
-                ':',
-                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-              ),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  SizedBox(
-                    width: 50,
-                    child: ListWheelScrollView.useDelegate(
-                      itemExtent: 40,
-                      physics: const FixedExtentScrollPhysics(),
-                      controller: FixedExtentScrollController(
-                        initialItem: isOpenTime ? _openHour : _closeHour,
-                      ),
-                      onSelectedItemChanged: (index) {
-                        setState(() {
-                          if (isOpenTime)
-                            _openHour = index;
-                          else
-                            _closeHour = index;
-                        });
-                      },
-                      childDelegate: ListWheelChildBuilderDelegate(
-                        builder: (context, index) {
-                          if (index < 0 || index > 23) return null;
-                          bool isSelected = isOpenTime
-                              ? _openHour == index
-                              : _closeHour == index;
-                          return Center(
-                            child: Text(
-                              index.toString().padLeft(2, '0'),
-                              style: TextStyle(
-                                fontSize: isSelected ? 22 : 18,
-                                color: isSelected
-                                    ? Colors.black
-                                    : Colors.grey.shade400,
-                              ),
-                            ),
-                          );
-                        },
-                        childCount: 24,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 20),
-                  SizedBox(
-                    width: 50,
-                    child: ListWheelScrollView.useDelegate(
-                      itemExtent: 40,
-                      physics: const FixedExtentScrollPhysics(),
-                      controller: FixedExtentScrollController(
-                        initialItem: isOpenTime ? _openMinute : _closeMinute,
-                      ),
-                      onSelectedItemChanged: (index) {
-                        setState(() {
-                          if (isOpenTime)
-                            _openMinute = index;
-                          else
-                            _closeMinute = index;
-                        });
-                      },
-                      childDelegate: ListWheelChildBuilderDelegate(
-                        builder: (context, index) {
-                          if (index < 0 || index > 59) return null;
-                          bool isSelected = isOpenTime
-                              ? _openMinute == index
-                              : _closeMinute == index;
-                          return Center(
-                            child: Text(
-                              index.toString().padLeft(2, '0'),
-                              style: TextStyle(
-                                fontSize: isSelected ? 22 : 18,
-                                color: isSelected
-                                    ? Colors.black
-                                    : Colors.grey.shade400,
-                              ),
-                            ),
-                          );
-                        },
-                        childCount: 60,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ),
-      ],
     );
   }
 }
