@@ -23,6 +23,7 @@ class _MerchantSlipReviewScreenState extends State<MerchantSlipReviewScreen> {
   Map<String, dynamic>? _slip;
   bool _loading = true;
   bool _reporting = false;
+  bool _approving = false;
 
   @override
   void initState() {
@@ -72,6 +73,75 @@ class _MerchantSlipReviewScreenState extends State<MerchantSlipReviewScreen> {
       }
     } finally {
       if (mounted) setState(() => _reporting = false);
+    }
+  }
+
+  Future<void> _approveVerifiedSlip() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogCtx) => AlertDialog(
+        title: const Text('ยืนยันรับสลิป'),
+        content: const Text('ยืนยันว่าได้รับเงินตามสลิปนี้แล้วใช่หรือไม่?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogCtx, false),
+            child: const Text('ยกเลิก'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(dialogCtx, true),
+            child: const Text('ฉันได้รับเงินแล้ว'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+
+    setState(() => _approving = true);
+    try {
+      final response = await http
+          .put(
+            Uri.parse(
+              ApiConfig.merchantOrderStatus(widget.merchantId, widget.orderId),
+            ),
+            headers: {'Content-Type': 'application/json'},
+            body: jsonEncode({
+              'status': 'กำลังปรุง',
+              'merchant_confirmed_payment': true,
+            }),
+          )
+          .timeout(const Duration(seconds: 15));
+      final body = jsonDecode(response.body);
+      if (!mounted) return;
+
+      if (response.statusCode == 200 && body['success'] == true) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('ยืนยันรับสลิปแล้ว เริ่มเตรียมอาหารได้เลย'),
+            backgroundColor: Color(0xFF10B981),
+          ),
+        );
+        Navigator.pop(context, true);
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              body['message']?.toString() ?? 'ไม่สามารถยืนยันรับสลิปได้',
+            ),
+            backgroundColor: const Color(0xFFEF4444),
+          ),
+        );
+      }
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('ไม่สามารถยืนยันรับสลิปได้: $error'),
+            backgroundColor: const Color(0xFFEF4444),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _approving = false);
     }
   }
 
@@ -143,6 +213,37 @@ class _MerchantSlipReviewScreenState extends State<MerchantSlipReviewScreen> {
                         errorBuilder: (_, __, ___) => const SizedBox(height: 180, child: Center(child: Text('ไม่สามารถแสดงรูปสลิปได้'))),
                       ),
                     ),
+                  const SizedBox(height: 22),
+                  SizedBox(
+                    height: 52,
+                    child: ElevatedButton(
+                      onPressed: _approving ? null : _approveVerifiedSlip,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF10B981),
+                        disabledBackgroundColor: const Color(0xFFB8E8D0),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(26),
+                        ),
+                      ),
+                      child: _approving
+                          ? const SizedBox(
+                              width: 18,
+                              height: 18,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: Colors.white,
+                              ),
+                            )
+                          : const Text(
+                              'ฉันได้รับเงินแล้ว',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 17,
+                              ),
+                            ),
+                    ),
+                  ),
                   if (isRejected) ...[
                     const SizedBox(height: 22),
                     SizedBox(
