@@ -246,26 +246,6 @@ class _MerchantAcceptOrderState extends State<MerchantAcceptOrder> {
                             ),
                           ],
                         ),
-                        if (widget.orderData['paymentTime'] != null) ...[
-                          const SizedBox(height: 8),
-                          Row(
-                            children: [
-                              const Icon(
-                                Icons.payments_outlined,
-                                size: 16,
-                                color: Colors.grey,
-                              ),
-                              const SizedBox(width: 8),
-                              Text(
-                                'เวลาชำระเงิน: ${widget.orderData['paymentTime']}',
-                                style: const TextStyle(
-                                  color: Colors.grey,
-                                  fontSize: 13,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ],
                       ],
                     ),
                   ),
