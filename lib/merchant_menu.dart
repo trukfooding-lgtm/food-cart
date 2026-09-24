@@ -76,6 +76,39 @@ class _MerchantMenuState extends State<MerchantMenu> {
         body['image_url']?.toString();
   }
 
+  // Resolve legacy /uploads URLs and bare filenames through the backend
+  // Storage resolver. Existing absolute URLs (including Supabase public URLs)
+  // remain unchanged, so this only affects menu images on this merchant page.
+  String _resolveMenuImageUrl(dynamic rawImage) {
+    final raw = rawImage?.toString().trim() ?? '';
+    if (raw.isEmpty || raw == 'null') return '';
+
+    String? filename;
+    if (raw.startsWith('/uploads/') || raw.startsWith('uploads/')) {
+      filename = raw.split('/').last;
+    } else {
+      final uri = Uri.tryParse(raw);
+      if (uri != null && uri.hasScheme) {
+        final isSupabaseStorageUrl =
+            uri.host.endsWith('.supabase.co') &&
+            uri.path.contains('/storage/v1/object/');
+        // Supabase public object URLs are already valid image URLs. Keep the
+        // original URL instead of routing it through the legacy backend path.
+        if (isSupabaseStorageUrl) return raw;
+        if (uri.path.contains('/uploads/') || isSupabaseStorageUrl) {
+          filename = uri.path.split('/').last;
+        } else {
+          return raw;
+        }
+      } else if (!raw.contains('/') && !raw.contains('\\')) {
+        filename = raw;
+      }
+    }
+
+    if (filename == null || filename.isEmpty) return raw;
+    return '${ApiConfig.baseUrl}/api/orders/menu-image/${Uri.encodeComponent(filename)}';
+  }
+
   void _confirmDelete(int index) {
     showDialog(
       context: context,
@@ -249,7 +282,9 @@ class _MerchantMenuState extends State<MerchantMenu> {
                                                   item['image'] != null)
                                             ? DecorationImage(
                                                 image: NetworkImage(
-                                                  item['image'],
+                                                  _resolveMenuImageUrl(
+                                                    item['image'],
+                                                  ),
                                                 ),
                                                 fit: BoxFit.cover,
                                               )
@@ -985,7 +1020,7 @@ class _MerchantMenuState extends State<MerchantMenu> {
                                 ),
                               )
                             : Image.network(
-                                item['image'],
+                                _resolveMenuImageUrl(item['image']),
                                 width: 80,
                                 height: 80,
                                 fit: BoxFit.cover,
