@@ -924,7 +924,7 @@ class _BuyerHomeScreenState extends State<BuyerHomeScreen> {
           ),
           const SizedBox(height: 14),
           SizedBox(
-            height: 195,
+            height: 215,
             child: filtered.isEmpty
                 ? const Center(child: Text('ไม่พบร้านในหมวดนี้', style: TextStyle(color: Color(0xFF94A3B8))))
                 : ListView.builder(
