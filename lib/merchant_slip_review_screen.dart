@@ -154,7 +154,9 @@ class _MerchantSlipReviewScreenState extends State<MerchantSlipReviewScreen> {
   @override
   Widget build(BuildContext context) {
     final slip = _slip;
-    final isRejected = slip?['status']?.toString() == 'REJECTED';
+    final slipStatus = slip?['status']?.toString().trim().toUpperCase();
+    final isRejected = slipStatus == 'REJECTED';
+    final canReportSlip = isRejected || slipStatus == 'VERIFIED';
     final imageUrl = resolveMerchantSlipImageUrl(slip?['slip_url']?.toString() ?? '');
 
     return Scaffold(
@@ -244,7 +246,7 @@ class _MerchantSlipReviewScreenState extends State<MerchantSlipReviewScreen> {
                             ),
                     ),
                   ),
-                  if (isRejected) ...[
+                  if (canReportSlip) ...[
                     const SizedBox(height: 22),
                     SizedBox(
                       height: 52,
