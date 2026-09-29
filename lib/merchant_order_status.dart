@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 
 import 'api.config.dart';
+import 'merchant_slip_review_screen.dart';
 
 // =======================================================================
 // 🟢 หน้า 2: อัปเดตคำสั่งซื้อ (ตามดีไซน์รูปขวา)
@@ -398,6 +399,29 @@ class _MerchantOrderStatusState extends State<MerchantOrderStatus> {
                     ),
                   ),
                   const SizedBox(height: 28),
+
+                  if (widget.orderData['hasPaymentSlip'] == true) ...[
+                    SizedBox(
+                      width: double.infinity,
+                      child: OutlinedButton.icon(
+                        onPressed: () async {
+                          final result = await Navigator.push<bool>(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => MerchantSlipReviewScreen(
+                                merchantId: widget.orderData['merchantId'],
+                                orderId: widget.orderData['databaseId'],
+                              ),
+                            ),
+                          );
+                          if (result == true) widget.onOrderUpdated();
+                        },
+                        icon: const Icon(Icons.receipt_long_outlined),
+                        label: const Text('ตรวจสอบสลิป'),
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+                  ],
 
                   // Timeline 4 ขั้นตอนตามแบบที่ต้องการ
                   Row(
