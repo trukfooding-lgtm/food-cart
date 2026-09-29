@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 
 import 'api.config.dart';
+import 'merchant_slip_review_support.dart';
 
 class MerchantSlipReviewScreen extends StatefulWidget {
   const MerchantSlipReviewScreen({
@@ -154,8 +155,7 @@ class _MerchantSlipReviewScreenState extends State<MerchantSlipReviewScreen> {
   Widget build(BuildContext context) {
     final slip = _slip;
     final isRejected = slip?['status']?.toString() == 'REJECTED';
-    final rawUrl = slip?['slip_url']?.toString() ?? '';
-    final imageUrl = rawUrl.startsWith('http') ? rawUrl : '${ApiConfig.baseUrl}$rawUrl';
+    final imageUrl = resolveMerchantSlipImageUrl(slip?['slip_url']?.toString() ?? '');
 
     return Scaffold(
       backgroundColor: const Color(0xFFF5F7FA),

@@ -11,6 +11,8 @@ import 'merchant_rejected_order.dart';
 import 'merchant_order_status.dart';
 import 'merchant_profile_screen.dart';
 import 'merchant_notification_page.dart';
+import 'merchant_slip_review_screen.dart';
+import 'merchant_slip_review_support.dart';
 import 'api.config.dart';
 
 class MerchantHomeScreen extends StatefulWidget {
@@ -117,6 +119,7 @@ class _MerchantHomeScreenState extends State<MerchantHomeScreen> {
         (body['data'] as List).map((raw) {
           final data = Map<String, dynamic>.from(raw);
           final status = data['merchant_status']?.toString() ?? 'ใหม่';
+          final hasPaymentSlip = merchantOrderHasSlipEvidence(data);
           final isPaid =
               data['is_paid'] == true ||
               data['is_paid']?.toString().toLowerCase() == 'true' ||
@@ -160,6 +163,8 @@ class _MerchantHomeScreenState extends State<MerchantHomeScreen> {
             'time': displayTime(orderedAt),
             'paymentTime': displayTime(orderedAt),
             'isPaid': isPaid,
+            'hasPaymentSlip': hasPaymentSlip,
+            'latestSlipStatus': data['latest_slip_status'],
             'customerPoints':
                 data['customer_points'] ??
                 data['points_balance'] ??
@@ -741,6 +746,28 @@ class _MerchantHomeScreenState extends State<MerchantHomeScreen> {
                     ),
                   ),
           ),
+          if (order['hasPaymentSlip'] == true) ...[
+            const SizedBox(height: 8),
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed: () async {
+                  final result = await Navigator.push<bool>(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => MerchantSlipReviewScreen(
+                        merchantId: order['merchantId'],
+                        orderId: order['databaseId'],
+                      ),
+                    ),
+                  );
+                  if (result == true) _refreshMerchantData();
+                },
+                icon: const Icon(Icons.receipt_long_outlined),
+                label: const Text('ตรวจสอบสลิป'),
+              ),
+            ),
+          ],
         ],
       ),
     );
